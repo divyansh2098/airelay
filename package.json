@@ -1,0 +1,28 @@
+{
+  "name": "airelay",
+  "version": "0.1.0",
+  "description": "Three-agent relay (planner / implementer / reviewer) that builds any idea from a markdown spec, with file-backed state for context-window handoff between sessions",
+  "type": "module",
+  "bin": {
+    "airelay": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli/index.js",
+    "test": "node --import tsx --test 'test/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

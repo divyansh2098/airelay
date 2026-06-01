@@ -45,6 +45,7 @@ export const implementerAgent: AgentDefinition = {
   name: "implementer",
   systemPrompt: SYSTEM_PROMPT,
   tools: allDefaultTools,
+  allowedDoneReasons: ["task_complete", "context_limit", "blocked"],
   buildInitialUserMessage,
 };
 

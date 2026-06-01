@@ -100,7 +100,7 @@ test("edit_file rejects empty old_string", async () => {
 
 test("done tool stores signal", async () => {
   const slot: DoneSlot = { signal: null };
-  const tool = buildDoneTool(slot);
+  const tool = buildDoneTool(slot, ["task_complete", "context_limit", "blocked"]);
   await tool.handler({ reason: "task_complete", note: "ok" }, tempCtx());
   assert.equal(slot.signal?.reason, "task_complete");
   assert.equal(slot.signal?.note, "ok");
@@ -108,10 +108,30 @@ test("done tool stores signal", async () => {
 
 test("done tool rejects invalid reason", async () => {
   const slot: DoneSlot = { signal: null };
-  const tool = buildDoneTool(slot);
+  const tool = buildDoneTool(slot, ["task_complete", "context_limit", "blocked"]);
   const result = await tool.handler({ reason: "bogus" }, tempCtx());
   assert.equal(result.isError, true);
   assert.equal(slot.signal, null);
+});
+
+test("done tool rejects reason not in allowed set", async () => {
+  const slot: DoneSlot = { signal: null };
+  const tool = buildDoneTool(slot, ["approved", "needs_rework"]);
+  const result = await tool.handler({ reason: "task_complete" }, tempCtx());
+  assert.equal(result.isError, true);
+  assert.equal(slot.signal, null);
+});
+
+test("done tool accepts reviewer reasons when configured", async () => {
+  const slot: DoneSlot = { signal: null };
+  const tool = buildDoneTool(slot, ["approved", "needs_rework", "blocked"]);
+  await tool.handler({ reason: "approved" }, tempCtx());
+  assert.equal(slot.signal?.reason, "approved");
+});
+
+test("buildDoneTool throws on empty allowedReasons", () => {
+  const slot: DoneSlot = { signal: null };
+  assert.throws(() => buildDoneTool(slot, []));
 });
 
 test("write_file rejects sandbox escape", async () => {

@@ -16,9 +16,8 @@ import {
   ToolContext,
   StopReason,
 } from "./types.js";
-import { buildDoneTool, DoneSlot } from "./tools/done.js";
+import { buildDoneTool, DoneSlot, DoneSignal } from "./tools/done.js";
 import {
-  ContextWatcher,
   createContextWatcher,
   WRAP_UP_MESSAGE,
 } from "./context-watcher.js";
@@ -43,7 +42,10 @@ export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
   const client = opts.client ?? new Anthropic({ apiKey: config.apiKey });
 
   const doneSlot: DoneSlot = { signal: null };
-  const tools: Tool[] = [...agent.tools, buildDoneTool(doneSlot)];
+  const tools: Tool[] = [
+    ...agent.tools,
+    buildDoneTool(doneSlot, agent.allowedDoneReasons),
+  ];
   const toolByName = new Map<string, Tool>(tools.map((t) => [t.definition.name, t]));
   const sdkTools: SdkTool[] = tools.map((t) => ({
     name: t.definition.name,
@@ -183,15 +185,6 @@ function makeRunLogAppender(path: string): (line: string) => void {
   };
 }
 
-function doneSignalToStopReason(signal: { reason: string; note?: string }): StopReason {
-  switch (signal.reason) {
-    case "task_complete":
-      return { kind: "task_complete", note: signal.note };
-    case "context_limit":
-      return { kind: "context_limit", note: signal.note };
-    case "blocked":
-      return { kind: "blocked", note: signal.note };
-    default:
-      return { kind: "model_stop", reason: `unknown done reason: ${signal.reason}` };
-  }
+function doneSignalToStopReason(signal: DoneSignal): StopReason {
+  return { kind: signal.reason, note: signal.note };
 }

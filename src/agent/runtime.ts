@@ -1,12 +1,4 @@
 import { appendFileSync } from "node:fs";
-import Anthropic from "@anthropic-ai/sdk";
-import type {
-  MessageParam,
-  ContentBlockParam,
-  Tool as SdkTool,
-  ToolUseBlock,
-  Message,
-} from "@anthropic-ai/sdk/resources/messages.js";
 import { Config } from "../config/config.js";
 import {
   AgentDefinition,
@@ -21,12 +13,13 @@ import {
   createContextWatcher,
   WRAP_UP_MESSAGE,
 } from "./context-watcher.js";
+import { AIMessage, AIMessageParam, AITool, AIContentBlockParam } from "./ai-types.js";
+import { createAIClient } from "./ai-client.js";
 
 export interface RuntimeOptions {
   config: Config;
   agent: AgentDefinition;
   context: AgentContext;
-  client?: Anthropic;
   onTurn?: (info: TurnInfo) => void;
 }
 
@@ -39,7 +32,8 @@ export interface TurnInfo {
 
 export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
   const { config, agent, context } = opts;
-  const client = opts.client ?? new Anthropic({ apiKey: config.apiKey });
+
+  const client = createAIClient(config.backend);
 
   const doneSlot: DoneSlot = { signal: null };
   const tools: Tool[] = [
@@ -47,10 +41,10 @@ export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
     buildDoneTool(doneSlot, agent.allowedDoneReasons),
   ];
   const toolByName = new Map<string, Tool>(tools.map((t) => [t.definition.name, t]));
-  const sdkTools: SdkTool[] = tools.map((t) => ({
+  const aiTools: AITool[] = tools.map((t) => ({
     name: t.definition.name,
     description: t.definition.description,
-    input_schema: t.definition.inputSchema as SdkTool["input_schema"],
+    input_schema: t.definition.inputSchema as AITool["input_schema"],
   }));
 
   const watcher = createContextWatcher({
@@ -60,7 +54,7 @@ export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
 
   const toolContext = buildToolContext(context, config);
   const initialUser = await agent.buildInitialUserMessage(context);
-  const messages: MessageParam[] = [{ role: "user", content: initialUser }];
+  const messages: AIMessageParam[] = [{ role: "user", content: initialUser }];
 
   let totalIn = 0;
   let totalOut = 0;
@@ -69,13 +63,12 @@ export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
   while (turn < config.maxAgentTurns) {
     turn++;
 
-    const response = await client.messages.create({
-      model: config.model.id,
-      max_tokens: 8192,
-      system: agent.systemPrompt,
-      tools: sdkTools,
+    const response = await client.chat(
+      config.model.id,
+      agent.systemPrompt,
+      aiTools,
       messages,
-    });
+    );
 
     totalIn += response.usage.input_tokens;
     totalOut += response.usage.output_tokens;
@@ -105,7 +98,7 @@ export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
       });
     }
 
-    const toolResults: ContentBlockParam[] = [];
+    const toolResults: AIContentBlockParam[] = [];
     for (const call of toolCalls) {
       const tool = toolByName.get(call.name);
       if (!tool) {
@@ -159,8 +152,8 @@ export async function runAgent(opts: RuntimeOptions): Promise<AgentResult> {
   }
 }
 
-function collectToolCalls(response: Message): ToolUseBlock[] {
-  const calls: ToolUseBlock[] = [];
+function collectToolCalls(response: AIMessage): Array<{ id: string; name: string; input: Record<string, unknown> }> {
+  const calls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
   for (const block of response.content) {
     if (block.type === "tool_use") calls.push(block);
   }

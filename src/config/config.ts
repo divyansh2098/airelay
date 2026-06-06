@@ -10,8 +10,8 @@ export const MODELS: Record<string, ModelInfo> = {
 };
 
 export interface Config {
-  apiKey: string;
   model: ModelInfo;
+  backend: string;
   contextThreshold: number;
   maxAgentTurns: number;
   bashTimeoutMs: number;
@@ -25,18 +25,12 @@ export class ConfigError extends Error {
 }
 
 const DEFAULT_MODEL_ID = "claude-sonnet-4-6";
+const DEFAULT_BACKEND = "gemini-cli";
 const DEFAULT_CONTEXT_THRESHOLD = 0.7;
 const DEFAULT_MAX_TURNS = 200;
 const DEFAULT_BASH_TIMEOUT_MS = 5 * 60 * 1000;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const apiKey = env.ANTHROPIC_API_KEY ?? "";
-  if (!apiKey) {
-    throw new ConfigError(
-      "ANTHROPIC_API_KEY is not set. Set it in your environment before running an agent.",
-    );
-  }
-
   const modelId = env.AIRELAY_MODEL ?? DEFAULT_MODEL_ID;
   const model = MODELS[modelId];
   if (!model) {
@@ -44,6 +38,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       `unknown model "${modelId}". Known models: ${Object.keys(MODELS).join(", ")}`,
     );
   }
+
+  const backend = env.AIRELAY_BACKEND ?? DEFAULT_BACKEND;
 
   const contextThreshold = parseFloatEnv(
     env.AIRELAY_CONTEXT_THRESHOLD,
@@ -74,7 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(`AIRELAY_BASH_TIMEOUT_MS must be >= 1000; got ${bashTimeoutMs}`);
   }
 
-  return { apiKey, model, contextThreshold, maxAgentTurns, bashTimeoutMs };
+  return { model, backend, contextThreshold, maxAgentTurns, bashTimeoutMs };
 }
 
 function parseFloatEnv(raw: string | undefined, fallback: number, name: string): number {

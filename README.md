@@ -2,9 +2,9 @@
 
 Three-agent relay (planner / implementer / reviewer) that builds any idea from a markdown spec, with file-backed state for context-window handoff between sessions.
 
-You write `IDEA.md`. airelay scaffolds a workspace, plans the work, implements it task-by-task, and reviews each task with an independent critic — all driven by Claude. When a session runs out of context, it stops cleanly and the next session resumes from the markdown files on disk.
+You write `IDEA.md`. airelay scaffolds a workspace, plans the work, implements it task-by-task, and reviews each task with an independent critic — all driven by LLMs (like Claude or Gemini). When a session runs out of context, it stops cleanly and the next session resumes from the markdown files on disk.
 
-> **Status:** early. The framework, planner, implementer, and reviewer agents are wired up. The orchestrator (`airelay loop`, auto-commit, context-limit respawn) is not yet implemented.
+> **Status:** early. The framework, planner, implementer, reviewer agents, and the orchestrator (`airelay loop`) are wired up.
 
 ## Why
 
@@ -61,7 +61,7 @@ node dist/cli/index.js <command> ...
 
 ```bash
 # 1. Scaffold a starter idea file
-airelay init my-idea.md
+airelay init my-idea
 
 # 2. Edit my-idea.md, then validate it and provision ideas/<slug>/
 airelay new my-idea.md
@@ -75,22 +75,37 @@ airelay run <slug>
 # 5. Run the reviewer over the staged diff
 airelay review <slug>
 
-# Repeat 4 + 5 until all tasks are done.
+# 6. Run the status command to see the current progress
+airelay status <slug>
+
+# 7. Run the loop to auto-alternate run + review until all tasks are done
+airelay loop <slug>
 ```
 
 `airelay help` lists every subcommand.
 
 ## Configuration
 
-All config is read from environment variables. `ANTHROPIC_API_KEY` is required at runtime.
+All config is read from environment variables.
 
 | Variable                       | Default                | Notes                                            |
 | ------------------------------ | ---------------------- | ------------------------------------------------ |
-| `ANTHROPIC_API_KEY`            | _(required)_           | Your Anthropic API key.                          |
+| `AIRELAY_BACKEND`             | `gemini-cli`           | AI backend: `gemini-cli` or `claude-cli`.        |
 | `AIRELAY_MODEL`                | `claude-sonnet-4-6`    | Must be one of the known model IDs.              |
 | `AIRELAY_CONTEXT_THRESHOLD`    | `0.7`                  | Fraction of context window before wrap-up nudge. |
 | `AIRELAY_MAX_TURNS`            | `200`                  | Hard turn cap per agent invocation.              |
 | `AIRELAY_BASH_TIMEOUT_MS`      | `300000`               | Default `run_bash` timeout (5 min).              |
+
+Note: `airelay` calls out to CLI tools (`gemini` or `claude`) for model interaction. Ensure these tools are in your `PATH` and configured with necessary API keys in their own environment.
+
+## Multi-backend support
+
+`airelay` is designed to be AI-backend agnostic. It does not call APIs directly; instead, it delegates to underlying CLI tools:
+
+- **`gemini-cli`** (default): Uses the `gemini chat` command.
+- **`claude-cli`**: Uses the `claude chat` command.
+
+Set `AIRELAY_BACKEND` to switch. Authentication and configuration (including API keys) are handled by the respective CLI tools.
 
 ## Idea file format
 
@@ -101,7 +116,7 @@ All config is read from environment variables. `ANTHROPIC_API_KEY` is required a
 ```
 src/
   agent/
-    runtime.ts          # the message loop driving Anthropic SDK
+    runtime.ts          # the message loop driving the relay
     context-watcher.ts  # warns the agent when context fills
     sandbox.ts          # path containment under ideaRoot
     tools/              # read_file, write_file, edit_file, run_bash, done, ask_user, record_finding
@@ -132,8 +147,8 @@ npm run dev         # tsc --watch
 
 ## Roadmap
 
-- `airelay loop <slug>` — auto-alternate run + review until done.
-- `airelay status <slug>` — print PLAN.md task summary.
-- 3-rework-rounds escalation back to a human.
-- Auto-commit on reviewer approval.
-- Context-limit respawn (start a fresh implementer session when the previous one stops with `context_limit`).
+- 3-rework-rounds escalation back to a human (Implemented).
+- Auto-commit on reviewer approval (Implemented).
+- Context-limit respawn (Implemented).
+- Support for more models (e.g. GPT-4).
+- Parallel task execution for independent branches of the plan.

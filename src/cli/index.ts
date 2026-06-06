@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 import "dotenv/config";
-import { resolve, join } from "node:path";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { validateIdea, IdeaValidationError } from "../validator/idea.js";
-import { IDEA_TEMPLATE } from "../validator/template.js";
-import { provisionIdea, ProvisionError, ideaPaths, ProvisionPaths } from "../provision/provision.js";
-import { loadConfig, ConfigError, Config } from "../config/config.js";
-import { runAgent } from "../agent/runtime.js";
-import { AgentDefinition, AgentResult, StopReason } from "../agent/types.js";
-import { implementerAgent } from "../agents/implementer.js";
-import { plannerAgent } from "../agents/planner.js";
-import { buildReviewerAgent } from "../agents/reviewer.js";
-import { parsePlan, writePlan, findNextActionable, findReadyForReview, PlanTask } from "../plan/plan.js";
-import { transition } from "../state/task-state.js";
-import { diffStaged, isRepo, diffUnstaged, stageAll, commit } from "../git/git.js";
+import {join, resolve} from "node:path";
+import {existsSync, readFileSync, writeFileSync} from "node:fs";
+import {IdeaValidationError, validateIdea} from "../validator/idea.js";
+import {IDEA_TEMPLATE} from "../validator/template.js";
+import {ideaPaths, ProvisionError, provisionIdea, ProvisionPaths} from "../provision/provision.js";
+import {Config, ConfigError, loadConfig} from "../config/config.js";
+import {runAgent} from "../agent/runtime.js";
+import {AgentDefinition, AgentResult, StopReason} from "../agent/types.js";
+import {implementerAgent} from "../agents/implementer.js";
+import {plannerAgent} from "../agents/planner.js";
+import {buildReviewerAgent} from "../agents/reviewer.js";
+import {findNextActionable, findReadyForReview, parsePlan, PlanTask, writePlan} from "../plan/plan.js";
+import {transition} from "../state/task-state.js";
+import {commit, diffStaged, diffUnstaged, isRepo, stageAll} from "../git/git.js";
 
 const IDEAS_BASE_DIR = resolve(process.cwd(), "ideas");
 
@@ -487,8 +487,7 @@ function stopReasonLabel(r: StopReason): string {
     case "model_stop":
       return `model_stop (${r.reason})`;
     default: {
-      const _exhaustive: never = r;
-      return String(_exhaustive);
+      return String(r);
     }
   }
 }
